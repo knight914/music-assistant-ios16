@@ -1,6 +1,9 @@
 name: iOS 16 unsigned IPA (experimental)
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feat/ios16-unsigned-20261110
 permissions:
   contents: read
 concurrency:
