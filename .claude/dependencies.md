@@ -1,0 +1,41 @@
+# Dependencies
+
+## UI
+- **Compose Multiplatform** - Cross-platform UI
+- **Material3** - Design system
+- **MaterialKolor** (5.0.1) - Makes a Material 3 color scheme from one seed color. The accent color setting takes only the primary group from it.
+- **Material Icons Extended** - Icon set
+- **FontAwesome / Tabler Icons** - Additional icons
+
+## Networking
+- **Ktor** - HTTP client + WebSocket (CIO/Darwin/Java engines)
+- **WebSocket** - Real-time server connection
+- **WebRTC KMP** (v0.125.11) - Remote access tunneling (✅ production ready on Android)
+  - **Note**: Uses native `org.webrtc.DataChannel` API for TEXT message transmission (webrtc-kmp limitation workaround)
+
+## Data
+- **kotlinx.serialization** - JSON serialization
+- **multiplatform-settings-no-arg** - Cross-platform preferences
+
+## DI & Architecture
+- **Koin** - Dependency injection (core + compose + viewmodel)
+- **Navigation3** - Type-safe navigation + Material3 adaptive
+
+## Media
+- **Coil 3.5.0** - Async image decoding and Compose integration; a pre-memory interceptor resolves HTTP and `mawebrtc` artwork through the app-owned `ArtworkRepository`, which supplies encoded bytes and content-based identities (no Coil network artifact). Coil 3.6.2 was reverted because it requires Compose 1.12 alignment.
+- **ExoPlayer (Media3)** - Android local playback
+- **AVPlayer** - iOS local playback
+
+## Utilities
+- **Kermit** - Multiplatform logging
+- **Reorderable** - Drag-drop list reordering
+- **mDNS** - Sendspin service discovery/advertising
+
+## Build
+- **Gradle** - Build system
+- **Kotlin Multiplatform** - Cross-platform compilation
+- **JVM 17** - Target for Android
+
+---
+
+> **Maintenance**: Update this file when adding/removing libraries.

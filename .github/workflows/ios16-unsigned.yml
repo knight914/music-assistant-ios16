@@ -1,0 +1,48 @@
+name: iOS 16 unsigned IPA (experimental)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ios16-unsigned-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Fetch upstream WebRTC framework
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 'https://github.com/teancom/webrtc/releases/download/m125-cow-bloat-fix.1/WebRTC.xcframework.m125-cow-bloat-fix.1.zip' -o "$RUNNER_TEMP/webrtc.zip"
+          mkdir -p iosApp/Frameworks
+          unzip -q "$RUNNER_TEMP/webrtc.zip" -d iosApp/Frameworks
+          test -d iosApp/Frameworks/WebRTC.xcframework/ios-arm64/WebRTC.framework
+      - name: Build unsigned device app
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          xcodebuild -version
+          xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/DerivedData" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO IPHONEOS_DEPLOYMENT_TARGET=16.0 build
+      - name: Package unsigned IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          apps=("$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos/"*.app)
+          test "${#apps[@]}" -eq 1 && test -d "${apps[0]}"
+          cp -R "${apps[0]}" "$RUNNER_TEMP/ipa/Payload/"
+          cd "$RUNNER_TEMP/ipa"
+          zip -qry "$RUNNER_TEMP/MusicAssistant-iOS16-unsigned.ipa" Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MusicAssistant-iOS16-unsigned
+          path: ${{ runner.temp }}/MusicAssistant-iOS16-unsigned.ipa
+          if-no-files-found: error

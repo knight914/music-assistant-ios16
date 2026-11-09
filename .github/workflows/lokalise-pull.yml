@@ -1,0 +1,50 @@
+name: Pull translations from Lokalise
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1' # Weekly on Monday at 6 AM UTC
+
+jobs:
+  pull-translations:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Pull from Lokalise
+        uses: lokalise/lokalise-pull-action@v6.0.0
+        with:
+          api_token: ${{ secrets.LOKALISE_API_TOKEN }}
+          project_id: ${{ secrets.LOKALISE_PROJECT_ID }}
+          base_lang: en
+          file_format: xml
+          translations_path: |
+            composeApp/src/commonMain/composeResources
+          file_ext: |
+            xml
+          additional_params: >
+            {
+              "export_empty_as": "skip",
+              "export_sort": "a_z"
+            }
+          post_process_command: |
+            set -e
+            # Compose Multiplatform resources can't express a BCP-47 script subtag
+            # (e.g. Serbian-Latin -> values-sr-rLatn), and the qualifier parser rejects
+            # the build. Drop any script-qualified locale dir until CMP supports it.
+            rm -rf composeApp/src/commonMain/composeResources/values-sr-rLatn
+            find composeApp/src/commonMain/composeResources -name 'strings.xml' -print0 | xargs -0 sed -i "s/\\\\'/'/g; s/\\\\\"/\"/g"
+            python3 scripts/sync-ios-localizations.py
+            # The action stages only translation files; include the derived iOS metadata too.
+            git add -- iosApp/iosApp/Info.plist
+          post_process_strict: true
+          pr_title: "chore: update translations from Lokalise"
+          pr_body: "Automated translation update from Lokalise."
+          pr_labels: "translations,automated"

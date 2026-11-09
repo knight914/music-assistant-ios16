@@ -1,0 +1,136 @@
+package io.music_assistant.client.ui.compose.library
+
+import io.music_assistant.client.settings.SettingsRepository.LibraryCategoryPref
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+/**
+ * AI Radio is the only category whose visibility depends on the server. These cover the pair of
+ * functions that hide it without losing the user's stored preference for it.
+ */
+class AiRadioCategoryVisibilityTest {
+    private fun pref(category: LibraryCategory, enabled: Boolean = true) =
+        LibraryCategoryPref(category.name, enabled)
+
+    @Test
+    fun `AI Radio is dropped when unavailable and kept when available`() {
+        val reconciled = reconcileLibraryCategories(null)
+
+        val hidden = visibleCategories(reconciled, aiRadioAvailable = false)
+        assertFalse(hidden.any { it.first == LibraryCategory.AI_RADIO })
+        assertEquals(reconciled.size - 1, hidden.size)
+
+        assertEquals(reconciled, visibleCategories(reconciled, aiRadioAvailable = true))
+    }
+
+    @Test
+    fun `no other category is affected by availability`() {
+        val reconciled = reconcileLibraryCategories(null)
+
+        val hidden = visibleCategories(reconciled, aiRadioAvailable = false).map { it.first }
+
+        assertEquals(
+            libraryCategories.filterNot { it == LibraryCategory.AI_RADIO },
+            hidden,
+        )
+    }
+
+    @Test
+    fun `saving while AI Radio is hidden keeps it enabled`() {
+        // The plugin list has not arrived yet, so the editor never listed AI Radio.
+        val reconciled = reconcileLibraryCategories(null)
+        val visible = visibleCategories(reconciled, aiRadioAvailable = false).map { it.first }
+
+        val saved = applyEnabledCategories(reconciled, visible.toSet(), visible.map { it.name })
+
+        assertEquals(reconciled, saved)
+    }
+
+    @Test
+    fun `saving while AI Radio is hidden preserves its stored disabled flag`() {
+        // The user turned AI Radio off, then the plugin went away.
+        val stored = libraryCategories.map {
+            pref(it, enabled = it != LibraryCategory.AI_RADIO)
+        }
+        val reconciled = reconcileLibraryCategories(stored)
+        val visible = visibleCategories(reconciled, aiRadioAvailable = false).map { it.first }
+
+        val saved = applyEnabledCategories(reconciled, visible.toSet(), visible.map { it.name })
+
+        assertEquals(reconciled, saved)
+    }
+
+    @Test
+    fun `car merge keeps a hidden AI Radio with its stored disabled flag`() {
+        // The user turned AI Radio off, then the plugin went away.
+        val stored = libraryCategories.map {
+            pref(it, enabled = it != LibraryCategory.AI_RADIO)
+        }
+        val reconciled = reconcileLibraryCategories(stored)
+        val edited = visibleCategories(reconciled, aiRadioAvailable = false)
+
+        // The editor saves only what it could see; the hidden entry must survive.
+        val merged = mergeHiddenCategories(edited, reconciled)
+
+        assertEquals(libraryCategories.toSet(), merged.map { it.first }.toSet())
+        assertTrue(merged.contains(LibraryCategory.AI_RADIO to false))
+    }
+
+    @Test
+    fun `car merge keeps the editor's order and appends only what it dropped`() {
+        val reconciled = reconcileLibraryCategories(null)
+        val edited = listOf(LibraryCategory.TRACKS to true, LibraryCategory.ALBUMS to false)
+
+        val merged = mergeHiddenCategories(edited, reconciled)
+
+        assertEquals(edited, merged.take(edited.size))
+        assertEquals(libraryCategories.size, merged.size)
+        assertEquals(libraryCategories.toSet(), merged.map { it.first }.toSet())
+    }
+
+    @Test
+    fun `saving applies the editor's choice to the visible categories in the stored order`() {
+        val reconciled = reconcileLibraryCategories(null)
+        val visible = visibleCategories(reconciled, aiRadioAvailable = true).map { it.first }.toSet()
+        val enabled = visible.filterNot { it == LibraryCategory.ALBUMS }.map { it.name }
+
+        val saved = applyEnabledCategories(reconciled, visible, enabled)
+
+        assertEquals(reconciled.map { it.first }, saved.map { it.first })
+        assertEquals(reconciled.map { it.first != LibraryCategory.ALBUMS }, saved.map { it.second })
+    }
+
+    @Test
+    fun `car tabs reconcile clamps to the car-supported universe and includes AI Radio`() {
+        assertTrue(LibraryCategory.AI_RADIO in carTabCategories)
+
+        // TRACKS is not a car tab, so a stored entry for it is dropped rather than rendered.
+        val stored = listOf(pref(LibraryCategory.TRACKS), pref(LibraryCategory.ALBUMS, false))
+
+        val result = reconcileCarTabs(stored)
+
+        assertEquals(LibraryCategory.ALBUMS to false, result.first())
+        assertEquals(carTabCategories.toSet(), result.map { it.first }.toSet())
+        assertTrue(result.contains(LibraryCategory.AI_RADIO to true))
+    }
+
+    @Test
+    fun `home is the first car tab and lands last in a config saved before it`() {
+        assertEquals(LibraryCategory.HOME to true, reconcileCarTabs(null).first())
+
+        val savedBeforeHome = (carTabCategories - LibraryCategory.HOME).map { pref(it) }
+
+        assertEquals(LibraryCategory.HOME to true, reconcileCarTabs(savedBeforeHome).last())
+    }
+
+    @Test
+    fun `home never becomes a phone library tab`() {
+        assertFalse(reconcileLibraryCategories(null).any { it.first == LibraryCategory.HOME })
+        assertFalse(
+            reconcileLibraryCategories(listOf(pref(LibraryCategory.HOME)))
+                .any { it.first == LibraryCategory.HOME },
+        )
+    }
+}
