@@ -49,7 +49,7 @@ final class OAuthWebSession: NSObject, OAuthHandler, ASWebAuthenticationPresenta
         // A fresh session per attempt — a second start() on the same instance returns false.
         let session = ASWebAuthenticationSession(
             url: authURL,
-            callback: .customScheme(KmpHelper.shared.oauthCallbackScheme())
+            callbackURLScheme: KmpHelper.shared.oauthCallbackScheme()
         ) { [weak self] callbackURL, error in
             self?.session = nil
             self?.finish(callbackURL: callbackURL, error: error)
