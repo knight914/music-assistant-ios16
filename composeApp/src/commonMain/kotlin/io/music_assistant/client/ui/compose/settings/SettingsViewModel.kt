@@ -169,6 +169,9 @@ class SettingsViewModel(
     }
 
     // Misc settings
+    val lockScreenLyrics = settings.lockScreenLyrics
+    fun setLockScreenLyrics(enabled: Boolean) = settings.setLockScreenLyrics(enabled)
+
     val allowLandscapeOnAllDevices = settings.allowLandscapeOnAllDevices
 
     fun setAllowLandscapeOnAllDevices(enabled: Boolean) =

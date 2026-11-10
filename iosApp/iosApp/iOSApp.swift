@@ -301,29 +301,14 @@ struct iOSApp: App {
         // Must be called for remote control events to work
         UIApplication.shared.beginReceivingRemoteControlEvents()
 
-        // Surface the system "allow Siri" prompt on first launch so the
-        // user gets it as a tap-once dialog instead of a setting they
-        // have to find. iOS 18+ exposes the resulting state as the "Use
-        // with Siri Requests" toggle under Settings → Apple Intelligence
-        // & Siri → Apps → Music Assistant; on fresh installs the toggle
-        // defaults to off, and our intent handlers never run until it
-        // flips on (verified in real-world testing). Calling on every
-        // launch is safe: the system only presents the alert when status
-        // is .notDetermined; subsequent calls return the cached value
-        // immediately. Requires NSSiriUsageDescription in Info.plist
-        // (already present) — without it, this call would crash.
-        INPreferences.requestSiriAuthorization { status in
-            let statusString: String
-            switch status {
-            case .notDetermined: statusString = "notDetermined"
-            case .restricted:    statusString = "restricted"
-            case .denied:        statusString = "denied"
-            case .authorized:    statusString = "authorized"
-            @unknown default:    statusString = "unknown(\(status.rawValue))"
-            }
-            os_log("Siri authorization status: %{public}@",
-                   log: siriLog, type: .info, statusString)
-        }
+        // Do not request Siri authorization during app initialization.
+        // Sideloaded builds may lack com.apple.developer.siri, in which case
+        // INPreferences asserts and aborts instead of returning a denied status.
+        // NSSiriUsageDescription alone does not grant that entitlement.
+        // Keep Siri intent handlers and CarPlay support; on appropriately signed
+        // builds, users can enable Siri access in the system Settings app.
+        // Any future in-app authorization action must first establish that the
+        // installed signature has the Siri entitlement, not merely a plist key.
     }
 
     var body: some Scene {

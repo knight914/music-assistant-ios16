@@ -258,6 +258,11 @@ object KmpHelper : KoinComponent {
      * Subscribe to track metadata changes (identity, titles, artwork URL,
      * duration, long-form flag).
      */
+    fun observeNowPlayingLyric(onChanged: (io.music_assistant.client.data.NowPlayingLyric?) -> Unit): Cancellable {
+        val job = mainScope.launch { mainDataSource.nowPlayingLyric.collect { onChanged(it) } }
+        return Cancellable { job.cancel() }
+    }
+
     fun observeNowPlayingTrack(onChanged: (NowPlayingTrack?) -> Unit): Cancellable {
         val job = mainScope.launch {
             mainDataSource.nowPlayingTrack.collect { onChanged(it) }

@@ -561,4 +561,6 @@
   <string name="unsupported_install_description">This server is not installed through one of the supported installation methods. Some features may not work as expected, and issues reported from it may be closed without support.</string>
   <string name="unsupported_install_link">Installation methods</string>
   <string name="unsupported_install_title">Unsupported installation</string>
+  <string name="settings_lock_screen_lyrics">Lock screen synced lyrics</string>
+  <string name="settings_lock_screen_lyrics_hint">Show the current lyric as the iOS system title, with song and artist in the subtitle. Also affects Control Center and CarPlay. Only synced lyrics for the local player are supported.</string>
 </resources>

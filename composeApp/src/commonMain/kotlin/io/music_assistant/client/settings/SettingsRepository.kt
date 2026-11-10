@@ -413,6 +413,13 @@ class SettingsRepository(
 
     // Opt-in escape hatch from the compact-device portrait lock: when set, the
     // platform layer stops constraining orientation on any device.
+    private val _lockScreenLyrics = MutableStateFlow(settings.getBoolean("lock_screen_lyrics", true))
+    val lockScreenLyrics = _lockScreenLyrics.asStateFlow()
+    fun setLockScreenLyrics(enabled: Boolean) {
+        settings.putBoolean("lock_screen_lyrics", enabled)
+        _lockScreenLyrics.update { enabled }
+    }
+
     private val _allowLandscapeOnAllDevices = MutableStateFlow(
         settings.getBoolean("allow_landscape_all_devices", false),
     )

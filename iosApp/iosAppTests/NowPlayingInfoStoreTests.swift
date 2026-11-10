@@ -49,6 +49,35 @@ final class NowPlayingInfoStoreTests: XCTestCase {
         )
     }
 
+    func testLyricOverlayRestoresOriginalAndRejectsOtherTrack() {
+        let harness = Harness()
+        setSampleTrack(harness)
+        harness.store.setLyric(contentId: "item-1", line: "当前歌词")
+        harness.runScheduledFlushes()
+        var info = try! XCTUnwrap(harness.sinkCalls.last!)
+        XCTAssertEqual(info[MPMediaItemPropertyTitle] as? String, "当前歌词")
+        XCTAssertEqual(info[MPMediaItemPropertyArtist] as? String, "Song · Artist")
+        harness.store.setLyric(contentId: "item-1", line: "  ")
+        harness.runScheduledFlushes()
+        info = try! XCTUnwrap(harness.sinkCalls.last!)
+        XCTAssertEqual(info[MPMediaItemPropertyTitle] as? String, "Song")
+        XCTAssertEqual(info[MPMediaItemPropertyArtist] as? String, "Artist")
+        harness.store.setLyric(contentId: "other", line: "旧歌词")
+        harness.runScheduledFlushes()
+        info = try! XCTUnwrap(harness.sinkCalls.last!)
+        XCTAssertEqual(info[MPMediaItemPropertyTitle] as? String, "Song")
+    }
+
+    func testLateLyricCannotResurrectClearedPresentation() {
+        let harness = Harness()
+        setSampleTrack(harness)
+        harness.store.clear()
+        let count = harness.sinkCalls.count
+        harness.store.setLyric(contentId: "item-1", line: "迟到歌词")
+        harness.runScheduledFlushes()
+        XCTAssertEqual(harness.sinkCalls.count, count)
+    }
+
     func testCoalescesMutationsIntoOneAssignment() {
         let harness = Harness()
 

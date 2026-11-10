@@ -84,6 +84,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -285,6 +287,45 @@ class MainDataSource(
      * Local system-media metadata; chapter presentation re-emits at boundaries
      * because no server event announces the duration/album change.
      */
+    // Bounded, connection-scoped cache includes negative results; no network polling.
+    private val lockScreenLyricsCache = mutableMapOf<String, io.music_assistant.client.data.model.client.Lyrics?>()
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val nowPlayingLyric: StateFlow<NowPlayingLyric?> =
+        combine(localPlayer, settings.lockScreenLyrics) { player, enabled ->
+            if (enabled) player else null
+        }.distinctUntilChangedBy { player ->
+            player?.queueInfo?.let { queue ->
+                queue.id to queue.currentItem?.track?.let { it.uri ?: "${it.provider}:${it.itemId}" }
+            }
+        }.flatMapLatest { player ->
+            kotlinx.coroutines.flow.flow {
+                val queue = player?.queueInfo
+                val track = queue?.currentItem?.track as? Track
+                if (queue == null || track == null) {
+                    emit(null)
+                    return@flow
+                }
+                // Clear old lyrics before a potentially suspended fetch.
+                emit(NowPlayingLyric(track.itemId, null))
+                val key = track.uri ?: "${track.provider}:${track.itemId}"
+                val lyrics = track.lyrics ?: if (lockScreenLyricsCache.containsKey(key)) {
+                    lockScreenLyricsCache[key]
+                } else {
+                    val found = mediaItemRepository.fetchTrackLyrics(track).getOrNull()
+                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                    if (lockScreenLyricsCache.size >= 64) lockScreenLyricsCache.remove(lockScreenLyricsCache.keys.first())
+                    lockScreenLyricsCache[key] = found
+                    found
+                }
+                val lines = (lyrics as? io.music_assistant.client.data.model.client.Lyrics.Synced)?.lines
+                    ?: return@flow
+                positionTracker.observe(queue.id).collect { position ->
+                    emit(NowPlayingLyric(track.itemId, syncedLyricAt(lines, position)))
+                }
+            }
+        }.distinctUntilChanged().stateIn(this, SharingStarted.WhileSubscribed(5_000), null)
+
     val nowPlayingTrack: StateFlow<NowPlayingTrack?> =
         localPlayerPresentation
             .map {
@@ -968,6 +1009,7 @@ class MainDataSource(
         _serverPlayers.update { DataState.NoData() }
         _queueInfos.update { emptyList() }
         positionTracker.clear()
+        lockScreenLyricsCache.clear()
         // Server-scoped: another server must not inherit this one's preferences.
         userPreferences.clear()
         localPlayerController.clearState()

@@ -123,6 +123,8 @@ import musicassistantclient.composeapp.generated.resources.settings_disconnect
 import musicassistantclient.composeapp.generated.resources.settings_exit_app
 import musicassistantclient.composeapp.generated.resources.settings_history_direct
 import musicassistantclient.composeapp.generated.resources.settings_history_webrtc
+import musicassistantclient.composeapp.generated.resources.settings_lock_screen_lyrics
+import musicassistantclient.composeapp.generated.resources.settings_lock_screen_lyrics_hint
 import musicassistantclient.composeapp.generated.resources.settings_misc
 import musicassistantclient.composeapp.generated.resources.settings_no_saved_connections
 import musicassistantclient.composeapp.generated.resources.settings_port
@@ -407,7 +409,10 @@ fun SettingsScreen(goHome: () -> Unit, exitApp: () -> Unit) {
                 val shareCrashLogsTitle = stringResource(Res.string.settings_share_crash_logs)
                 val allowLandscape by viewModel.allowLandscapeOnAllDevices
                     .collectAsStateWithLifecycle()
+                val lockScreenLyrics by viewModel.lockScreenLyrics.collectAsStateWithLifecycle()
                 MiscSection(
+                    lockScreenLyrics = lockScreenLyrics,
+                    onLockScreenLyricsChange = viewModel::setLockScreenLyrics,
                     allowLandscape = allowLandscape,
                     onAllowLandscapeChange = { viewModel.setAllowLandscapeOnAllDevices(it) },
                     onShareLogs = { viewModel.shareLogs(shareLogsTitle) },
@@ -427,6 +432,8 @@ fun SettingsScreen(goHome: () -> Unit, exitApp: () -> Unit) {
 
 @Composable
 private fun MiscSection(
+    lockScreenLyrics: Boolean,
+    onLockScreenLyricsChange: (Boolean) -> Unit,
     allowLandscape: Boolean,
     onAllowLandscapeChange: (Boolean) -> Unit,
     onShareLogs: () -> Unit,
@@ -437,6 +444,15 @@ private fun MiscSection(
 ) {
     SectionCard {
         SectionTitle(stringResource(Res.string.settings_misc))
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = lockScreenLyrics, onCheckedChange = onLockScreenLyricsChange)
+            Text(stringResource(Res.string.settings_lock_screen_lyrics))
+        }
+        Text(
+            modifier = Modifier.padding(start = 48.dp, bottom = 12.dp),
+            text = stringResource(Res.string.settings_lock_screen_lyrics_hint),
+            style = MaterialTheme.typography.bodySmall,
+        )
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,

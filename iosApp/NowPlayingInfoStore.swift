@@ -28,6 +28,16 @@ final class NowPlayingInfoStore {
 
     private var trackKeys: [String: Any] = [:]
     private var transport: TransportAnchor?
+    private var lyricContentId: String?
+    private var lyricLine: String?
+
+    /// Lyric updates are identity-stamped and never overwrite stored original metadata.
+    func setLyric(contentId: String?, line: String?) {
+        dispatchPrecondition(condition: .onQueue(.main))
+        lyricContentId = contentId
+        lyricLine = line?.trimmingCharacters(in: .whitespacesAndNewlines)
+        markDirty()
+    }
     private var flushScheduled = false
     /// Bumped by `clear()` so an already-scheduled flush closure becomes a no-op.
     private var generation: UInt64 = 0
@@ -88,6 +98,8 @@ final class NowPlayingInfoStore {
     func clear() {
         dispatchPrecondition(condition: .onQueue(.main))
         trackKeys.removeAll()
+        lyricContentId = nil
+        lyricLine = nil
         transport = nil
         generation &+= 1
         flushScheduled = false
@@ -110,7 +122,15 @@ final class NowPlayingInfoStore {
     func flushNow() {
         dispatchPrecondition(condition: .onQueue(.main))
         flushScheduled = false
+        guard !trackKeys.isEmpty else { return }
         var info = trackKeys
+        if lyricContentId == (trackKeys[MPNowPlayingInfoPropertyExternalContentIdentifier] as? String),
+           let line = lyricLine, !line.isEmpty {
+            info[MPMediaItemPropertyTitle] = line
+            let title = trackKeys[MPMediaItemPropertyTitle] as? String
+            let artist = trackKeys[MPMediaItemPropertyArtist] as? String
+            info[MPMediaItemPropertyArtist] = [title, artist].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+        }
         if let transport {
             info[MPNowPlayingInfoPropertyPlaybackRate] = transport.rate
             if let elapsedSec = transport.elapsedSec {

@@ -4,6 +4,16 @@
 
 The (official) Music Assistant Mobile app is a cross-platform client application designed for Android and iOS. Developed using Kotlin Multiplatform (KMP) and Compose Multiplatform frameworks, this project aims to provide a unified codebase for seamless music management across mobile platforms.
 
+## iOS 16 experimental: Simplified Chinese and synced lock-screen lyrics
+
+- This feature branch targets iOS 16; upstream platform requirements below remain unchanged.
+- Simplified Chinese covers every default Compose resource (including options, accessibility labels and errors). Song names, artist names, server-generated options and provider content remain as supplied by the server. Run `python3 scripts/check-zh-resources.py` to validate keys, plural quantities, printf arguments and escaped whitespace.
+- Settings → Misc → **Lock screen synced lyrics** (设置 → 其他选项 → 锁屏同步歌词) is enabled by default and can be disabled. Only the local player's timestamped LRC is used. The current nonblank line replaces the system media title, and the subtitle shows the original song title and artist. Unsynced/plain lyrics, introductions before the first timestamp and blank LRC lines retain the original metadata.
+- **The same system Now Playing title is used by the lock screen, Control Center and CarPlay**; iOS does not expose a separate public lock-screen lyric field. Disable the option to keep original titles on every surface. This is line-level title substitution, not Apple Music's full-screen/word-level lyrics UI.
+- Lyrics follow `PlayerPositionTracker` (including pause/seek); state is identity-stamped before crossing the KMP bridge, and only `NowPlayingInfoStore` publishes the assembled dictionary. Missing embedded lyrics trigger one repository lookup per cached track, including negative results; the bounded 64-track cache is cleared on connection reset. There is no network polling.
+- The unsigned build deliberately does not request Siri authorization during app initialization; it does not claim a Siri entitlement or bypass permission checks.
+- Physical-device lock-screen/background timing, CarPlay appearance and Siri behavior require device validation; source-level tests do not establish those runtime outcomes.
+
 ## Features
 
 *Disclaimer: This app is not intended to provide offline playback*

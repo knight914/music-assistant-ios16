@@ -201,6 +201,9 @@ final class NowPlayingCoordinator {
         transportSubscription = KmpHelper.shared.observeNowPlayingTransport { [weak self] transport in
             self?.handleTransport(transport)
         }
+        lyricSubscription = KmpHelper.shared.observeNowPlayingLyric { [weak self] lyric in
+            self?.handleLyric(lyric)
+        }
         modesSubscription = KmpHelper.shared.observeNowPlayingModes { [weak self] modes in
             self?.handleModes(modes)
         }
@@ -213,6 +216,15 @@ final class NowPlayingCoordinator {
     /// content flags. A nil track means "nothing to present" — the store
     /// empties and profile/session return to defaults, while remote-command
     /// targets stay installed.
+    private var lyricSubscription: ComposeApp.Cancellable?
+    private var lastLyric: NowPlayingLyric?
+
+    private func handleLyric(_ lyric: NowPlayingLyric?) {
+        dispatchPrecondition(condition: .onQueue(.main))
+        lastLyric = lyric
+        infoStore.setLyric(contentId: lyric?.mediaItemId, line: lyric?.line)
+    }
+
     private func handleTrack(_ track: NowPlayingTrack?) {
         dispatchPrecondition(condition: .onQueue(.main))
         guard let track else {
@@ -221,6 +233,10 @@ final class NowPlayingCoordinator {
         }
         let isNewTrack = track.mediaItemId != currentTrackId
         currentTrackId = track.mediaItemId
+        if isNewTrack {
+            infoStore.clear()
+            infoStore.setLyric(contentId: lastLyric?.mediaItemId, line: lastLyric?.line)
+        }
 
         configureAudioSession(mode: track.isLongFormContent ? .spokenAudio : .default)
         updateRemoteCommandMode(isLongFormContent: track.isLongFormContent, isRadio: track.isRadio)
@@ -311,6 +327,7 @@ final class NowPlayingCoordinator {
         artworkWaitTrackId = nil
         supersedeArtworkLoad()
         lastTransport = nil
+        lastLyric = nil
         infoStore.clear()
         setOwnsActiveSession(false)
         configureAudioSession(mode: .default)

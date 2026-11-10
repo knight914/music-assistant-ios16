@@ -10,6 +10,39 @@ concurrency:
   group: ios16-unsigned-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  tests:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Validate Simplified Chinese resources
+        run: python3 scripts/check-zh-resources.py
+      - name: Fetch upstream WebRTC framework for simulator tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 'https://github.com/teancom/webrtc/releases/download/m125-cow-bloat-fix.1/WebRTC.xcframework.m125-cow-bloat-fix.1.zip' -o "$RUNNER_TEMP/webrtc.zip"
+          mkdir -p iosApp/Frameworks
+          unzip -q "$RUNNER_TEMP/webrtc.zip" -d iosApp/Frameworks
+          chmod +x gradlew
+      - name: Run Kotlin Native tests including lyric boundary and seeking tests
+        run: ./gradlew :composeApp:iosSimulatorArm64Test
+      - name: Run native XCTest suite including lyric overlay tests
+        if: ${{ !cancelled() }}
+        run: bash scripts/test-ios.sh
+      - name: Preserve Kotlin test reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios16-kotlin-test-reports
+          path: |
+            composeApp/build/reports/tests/
+            composeApp/build/test-results/
+          if-no-files-found: warn
   build:
     runs-on: macos-26
     timeout-minutes: 60

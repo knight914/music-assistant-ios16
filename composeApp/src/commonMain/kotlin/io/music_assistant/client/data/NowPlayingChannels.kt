@@ -60,6 +60,12 @@ data class NowPlayingTransport(
     val rate: Double,
 )
 
+/** Identity-stamped line. Null/blank line restores the original metadata. */
+data class NowPlayingLyric(val mediaItemId: String, val line: String?)
+
+internal fun syncedLyricAt(lines: List<io.music_assistant.client.data.model.client.LrcLine>, seconds: Double): String? =
+    lines.lastOrNull { it.timeMs <= (seconds * 1000).toLong() }?.text?.takeIf { it.isNotBlank() }
+
 /** Current queue modes and whether their system controls are available. */
 data class NowPlayingModes(
     val shuffleEnabled: Boolean,
